@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            width: 320px; margin: 0; padding: 20px;
+            background: #f8fafc; color: #1e293b;
+        }
+        .header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+        .logo { width: 32px; height: 32px; background: #6366f1; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; }
+        h1 { font-size: 18px; margin: 0; font-weight: 800; }
+        
+        .guide-card {
+            background: white; border-radius: 16px; padding: 15px;
+            margin-bottom: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            border: 1px solid #f1f5f9;
+        }
+        .guide-card h2 { font-size: 14px; margin: 0 0 8px 0; color: #6366f1; display: flex; align-items: center; gap: 8px; }
+        .guide-card p { font-size: 12px; margin: 0; color: #64748b; line-height: 1.5; }
+        
+        .key {
+            background: #f1f5f9; padding: 2px 6px; border-radius: 4px;
+            border-bottom: 2px solid #cbd5e1; font-weight: 600; font-size: 11px;
+        }
+        
+        .footer-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .btn {
+            padding: 10px; border-radius: 10px; border: none; font-family: inherit;
+            font-weight: 600; cursor: pointer; text-align: center; text-decoration: none; font-size: 13px;
+        }
+        .btn-primary { background: #6366f1; color: white; }
+        .btn-secondary { background: #e2e8f0; color: #475569; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">⚡</div>
+        <h1>AutoFill Pro <span style="font-weight: 400; color: #64748b; font-size: 12px;">Kılavuz</span></h1>
+    </div>
+
+    <div class="guide-card">
+        <h2>⚡ Menüyü Tetikle</h2>
+        <p>Herhangi bir metin alanına tıkla veya <span class="key">Alt</span> + <span class="key">A</span> tuşlarını kullan.</p>
+    </div>
+
+    <div class="guide-card">
+        <h2>🔍 Akıllı Arama</h2>
+        <p>Menü açıldığında merkezdeki <b>AUTO</b> dairesine <b>SOL TIKLA</b>. Yazarak şablonlarını anında filtrele.</p>
+    </div>
+
+    <div class="guide-card">
+        <h2>📂 Kategoriler</h2>
+        <p>Merkezdeki <b>AUTO</b> dairesine <b>SAĞ TIKLA</b>. Kategorilerin (İş, Şahsi vb.) arasında hızlıca geçiş yap.</p>
+    </div>
+
+    <div class="guide-card">
+        <h2>➕ Yeni Şablon</h2>
+        <p>Sayfada herhangi bir metni fareyle seç. Yanında çıkan <b>+</b> butonuna basarak kütüphanene ekle.</p>
+    </div>
+
+    <div class="guide-card">
+        <h2>🎨 Temalar & Ayarlar</h2>
+        <p>Ayarlar sayfasından 4 farklı premium tema arasından seçim yap ve menü dizilimini özelleştir.</p>
+    </div>
+
+    <div class="footer-btns">
+        <a href="options.html" target="_blank" class="btn btn-primary">Ayarlar</a>
+        <button class="btn btn-secondary" onclick="window.close()">Kapat</button>
+    </div>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AutoFill Pro Test Page</title>
+    <style>
+        body { font-family: sans-serif; padding: 50px; background: #f0f0f0; }
+        .box { background: white; padding: 30px; border-radius: 12px; max-width: 500px; margin: auto; }
+        input, textarea { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>Test Alanı</h1>
+        <p>Aşağıdaki alanlara tıklayarak eklentiyi test edin.</p>
+        
+        <label>Normal Text:</label>
+        <input type="text" placeholder="Buraya tıkla...">
+        
+        <label>Search Input (Google Style):</label>
+        <input type="search" placeholder="Arama yap...">
+        
+        <label>TextArea:</label>
+        <textarea placeholder="Uzun metin..."></textarea>
+
+        <label>ContentEditable Div:</label>
+        <div contenteditable="true" style="border: 1px solid #ccc; padding: 10px; min-height: 50px; background: #fff; margin-bottom: 20px;">
+            Buraya yazı yazılabilir...
+        </div>
+
+        <p>Ayrıca bu sayfadaki herhangi bir metni seçerek "+" butonunun çıkıp çıkmadığını kontrol edin.</p>
+    </div>
+
+    <!-- Inject Content Script manually for testing -->
+    <script src="src/content_script.js"></script>
+</body>
+</html>

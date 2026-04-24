@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>AutoFill Pro Ayarları</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1; --bg: #f8fafc; --card: #ffffff; --text: #1e293b;
+        }
+        body {
+            font-family: 'Outfit', sans-serif; background-color: var(--bg); color: var(--text);
+            margin: 0; padding: 40px; display: flex; justify-content: center;
+        }
+        .container {
+            width: 100%; max-width: 900px; background: var(--card);
+            padding: 40px; border-radius: 28px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.08);
+        }
+        h1 { font-weight: 800; font-size: 32px; margin-bottom: 30px; display: flex; align-items: center; gap: 12px; }
+        .section { margin-bottom: 40px; background: #fbfcfe; padding: 25px; border-radius: 20px; border: 1px solid #f1f5f9; }
+        h2 { font-size: 16px; font-weight: 800; margin-bottom: 20px; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .control-group { background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; }
+        label { display: block; font-weight: 700; margin-bottom: 8px; font-size: 13px; color: #475569; }
+        input[type="number"], select {
+            width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1;
+            font-family: inherit; font-size: 14px;
+        }
+
+        .template-row {
+            display: grid; grid-template-columns: 1fr 120px 100px 80px 40px;
+            gap: 12px; margin-bottom: 12px; align-items: center;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } }
+        
+        input[type="text"] {
+            width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid #cbd5e1;
+            font-family: inherit; font-size: 14px; outline: none; transition: 0.2s;
+        }
+        input[type="text"]:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); }
+        
+        .type-select { background: #f1f5f9; font-weight: 600; }
+        .slot-input { text-align: center; font-weight: 800; color: var(--primary); }
+
+        .btn {
+            cursor: pointer; border: none; font-family: inherit; font-weight: 600;
+            transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+        }
+        .btn-add {
+            background: var(--primary); color: white; padding: 12px 24px;
+            border-radius: 12px; width: 100%; margin-top: 20px;
+        }
+        .btn-add:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3); }
+        .btn-delete { background: #fee2e2; color: #ef4444; width: 36px; height: 36px; border-radius: 8px; }
+
+        .color-pickers { display: flex; gap: 20px; margin-top: 15px; }
+        .color-item { display: flex; align-items: center; gap: 10px; }
+        input[type="color"] { width: 40px; height: 40px; border: none; border-radius: 8px; cursor: pointer; }
+
+        .save-bar {
+            position: sticky; bottom: 0; background: var(--card);
+            padding: 24px 0; border-top: 2px solid #f1f5f9;
+            display: flex; justify-content: flex-end; gap: 15px; margin-top: 40px;
+        }
+        .btn-save { background: #10b981; color: white; padding: 14px 48px; border-radius: 14px; font-size: 16px; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3); }
+        .btn-save:hover { background: #059669; transform: scale(1.02); }
+
+        .theme-circle {
+            width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+            border: 3px solid white; outline: 2px solid transparent; transition: 0.2s;
+        }
+        .theme-circle.active { outline-color: #1e293b; transform: scale(1.15); }
+
+        .tip { font-size: 12px; color: #94a3b8; margin-top: 4px; font-weight: 400; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ AutoFill Pro <span style="font-size: 14px; color: var(--primary); font-weight: 600; margin-left: auto; background: #eef2ff; padding: 4px 12px; border-radius: 20px;">v1.6 PRO ADVANCED</span></h1>
+
+        <div class="section">
+            <h2>Görünüm ve Tema Özelikleri</h2>
+            <div class="grid">
+                <div class="control-group">
+                    <label>Ana Tema</label>
+                    <div style="display: flex; gap: 12px;" id="themeList">
+                        <div class="theme-circle active" data-theme="indigo" style="background: #6366f1;"></div>
+                        <div class="theme-circle" data-theme="emerald" style="background: #10b981;"></div>
+                        <div class="theme-circle" data-theme="rose" style="background: #f43f5e;"></div>
+                        <div class="theme-circle" data-theme="dark" style="background: #1e293b;"></div>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Tip Renkleri</label>
+                    <div class="color-pickers">
+                        <div class="color-item">
+                            <input type="color" id="staticColor" value="#ef4444">
+                            <span style="font-size: 12px; font-weight: 600;">Statik (Kırmızı)</span>
+                        </div>
+                        <div class="color-item">
+                            <input type="color" id="dynamicColor" value="#3b82f6">
+                            <span style="font-size: 12px; font-weight: 600;">Dinamik (Mavi)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Gelişmiş Davranış Ayarları</h2>
+            <div class="grid">
+                <div class="control-group">
+                    <label>Tetikleyici Konumu</label>
+                    <select id="triggerPosition">
+                        <option value="mouse">Farenin Yanında (Önerilen)</option>
+                        <option value="input">Giriş Kutusu Köşesinde</option>
+                    </select>
+                    <p class="tip">Boş bir kutuya tıkladığında simge nerede belirsin?</p>
+                </div>
+                <div class="control-group">
+                    <label>Ağır Çekim Animasyon</label>
+                    <select id="enableFloating">
+                        <option value="true">Aktif (Yüzen Metinler)</option>
+                        <option value="false">Kapalı (Sabit)</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Dizilim Stili</label>
+                    <select id="radialStyle">
+                        <option value="standard">Dairesel (Standart)</option>
+                        <option value="semicircle">Yarım Daire</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Slot ve Slot Miktarları</h2>
+            <div class="grid">
+                <div class="control-group"><label>Kuzey (N)</label><input type="number" id="north" min="0" max="5"></div>
+                <div class="control-group"><label>Doğu (E)</label><input type="number" id="east" min="0" max="5"></div>
+                <div class="control-group"><label>Güney (S)</label><input type="number" id="south" min="0" max="5"></div>
+                <div class="control-group"><label>Batı (W)</label><input type="number" id="west" min="0" max="5"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Şablon Kütüphanesi & Slot Atama</h2>
+            <div style="display: grid; grid-template-columns: 1fr 120px 100px 80px 40px; gap: 12px; padding: 0 10px 10px; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px;">
+                <span class="tip" style="font-weight: 800;">Metin</span>
+                <span class="tip" style="font-weight: 800;">Kategori</span>
+                <span class="tip" style="font-weight: 800;">Tip</span>
+                <span class="tip" style="font-weight: 800;">Slot (E1, N2..)</span>
+                <span></span>
+            </div>
+            <div id="templateList"></div>
+            <button class="btn btn-add" id="addTemplate">+ Yeni Şablon / Slot Ekle</button>
+        </div>
+
+        <div class="save-bar">
+            <div id="status" style="margin-right: auto; align-self: center; color: #10b981; font-weight: 700; display: none; background: #ecfdf5; padding: 8px 16px; border-radius: 10px;">✅ Başarıyla Kaydedildi!</div>
+            <button class="btn btn-save" id="save">Tüm Ayarları Güncelle</button>
+        </div>
+    </div>
+    <script src="options.js"></script>
+</body>
+</html>
