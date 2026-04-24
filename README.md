@@ -1,4 +1,4 @@
-# OrbitalFill v1.6.1 Professional
+# OrbitalFill v1.6.1
 
 OrbitalFill, web tarayıcıları için geliştirilmiş, dairesel kullanıcı arayüzü (Radial UI) tabanlı bir veri giriş ve şablon yönetim otomasyonudur. Uygulama, yüksek verimlilik odaklı veri girişi senaryoları için tasarlanmıştır.
 
