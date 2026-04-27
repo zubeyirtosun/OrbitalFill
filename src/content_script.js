@@ -18,6 +18,7 @@
     let mouseX = 0;
     let mouseY = 0;
     let closeTimeout = null;
+    let lastTriggerTime = 0; // Double-click protection
 
     let settings = {
         directions: { north: 1, south: 1, east: 1, west: 1 },
@@ -40,12 +41,7 @@
         try {
             const hasStorage = typeof chrome !== 'undefined' && chrome && chrome.storage && chrome.storage.local;
             const storage = hasStorage ? chrome.storage.local : {
-                get: (keys) => Promise.resolve({
-                    templates: [
-                        { text: "Static Template", cat: "all", type: 'static', slot: 'N1' },
-                        { text: "Example Dynamic", cat: "all", type: 'dynamic' }
-                    ]
-                }),
+                get: (keys) => Promise.resolve({ templates: [] }),
                 set: (data) => Promise.resolve()
             };
 
@@ -55,14 +51,11 @@
                     const txt = typeof t === 'string' ? t : (t.text || '');
                     return { text: txt, cat: t.cat || 'all', type: t.type || 'dynamic', slot: t.slot || null };
                 });
-            } else {
-                templates = [{ text: "OrbitalFill Template", cat: "all", type: 'dynamic' }];
             }
             if (data.settings) settings = { ...settings, ...data.settings };
             if (data.recentlyUsed) recentlyUsed = data.recentlyUsed;
-            setupDOM(); 
-            attachListeners();
-            console.log('🚀 OrbitalFill Professional Ready (v1.6.3)');
+            setupDOM(); attachListeners();
+            console.log('🚀 OrbitalFill UX Optimized (v1.6.4) Ready');
         } catch (e) { console.error('Init Error:', e); }
     }
 
@@ -70,7 +63,7 @@
         document.querySelectorAll('#af-ui-host').forEach(el => el.remove());
         uiHost = document.createElement('div');
         uiHost.id = 'af-ui-host';
-        uiHost.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2147483647; pointer-events: none; visibility: visible; display: block;';
+        uiHost.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2147483647; pointer-events: none; overflow: visible;';
         document.documentElement.appendChild(uiHost);
         shadowRoot = uiHost.attachShadow({ mode: 'open' });
 
@@ -85,23 +78,23 @@
                 --af-dynamic: ${settings.dynamicColor || '#3b82f6'};
                 --af-gold: linear-gradient(135deg, rgba(255,215,0,0) 0%, rgba(255,215,0,0.8) 50%, rgba(255,215,0,0) 100%);
             }
-            .af-ui-container { position: absolute; pointer-events: none; width: 100%; height: 100%; top: 0; left: 0; visibility: visible; }
-            .af-ui-container * { pointer-events: auto; box-sizing: border-box; visibility: visible; }
+            .af-ui-container { position: absolute; pointer-events: none; width: 100%; height: 100%; top: 0; left: 0; }
+            .af-ui-container * { pointer-events: auto; box-sizing: border-box; }
             
             .af-trigger-wrapper {
-                position: absolute; display: none; align-items: center; gap: 10px;
-                transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1); 
-                padding: 15px; z-index: 2147483647;
+                position: absolute; display: none; align-items: center; gap: 8px;
+                transition: transform 0.2s, opacity 0.3s; 
+                padding: 15px; z-index: 2147483647; opacity: 0.7;
             }
+            .af-trigger-wrapper:hover { opacity: 1; transform: scale(1.05); }
 
             .af-trigger-icon {
-                width: 34px; height: 34px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
-                cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: 0.2s;
-                opacity: 1; color: white; border: 1px solid rgba(255, 255, 255, 0.3);
+                width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+                cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: 0.2s;
+                color: white; border: 1px solid rgba(255, 255, 255, 0.2);
                 background: linear-gradient(135deg, var(--af-main), var(--af-secondary));
-                font-size: 18px;
+                font-size: 16px;
             }
-            .af-trigger-icon:hover { transform: scale(1.15) rotate(5deg); border-radius: 50%; }
 
             .af-add-btn {
                 width: 32px; height: 32px; background: #10b981; color: white; border-radius: 10px;
@@ -111,10 +104,10 @@
 
             .af-radial-container {
                 position: absolute; width: 500px; height: 500px; display: flex; align-items: center; justify-content: center;
-                pointer-events: none; transform: translate(-50%, -50%); opacity: 0; visibility: hidden;
+                pointer-events: none; transform: translate(-50%, -50%); opacity: 0; 
                 transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
-            .af-radial-container.active { pointer-events: auto; opacity: 1; visibility: visible; }
+            .af-radial-container.active { pointer-events: auto; opacity: 1; }
 
             .af-radial-menu {
                 width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
@@ -161,6 +154,12 @@
                 transition: all 0.3s; opacity: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 60;
             }
             .af-search-input.active { transform: scale(1); opacity: 1; pointer-events: auto; }
+            .af-cat-indicator {
+                position: absolute; top: 145px; font-size: 10px; font-weight: 800;
+                background: var(--af-secondary); color: white; padding: 2px 10px; border-radius: 20px;
+                opacity: 0; transition: 0.3s; z-index: 60; text-transform: uppercase;
+            }
+            .af-radial-container.active .af-cat-indicator { opacity: 1; }
         `;
         shadowRoot.appendChild(style);
 
@@ -193,7 +192,6 @@
 
         catIndicator = document.createElement('div');
         catIndicator.className = 'af-cat-indicator';
-        catIndicator.style.cssText = 'position: absolute; top: 145px; font-size: 10px; font-weight: 800; background: var(--af-secondary); color: white; padding: 2px 10px; border-radius: 20px; opacity: 0; transition: 0.3s; z-index: 60; text-transform: uppercase;';
         catIndicator.innerText = 'ALL';
         radialContainer.appendChild(catIndicator);
 
@@ -204,45 +202,48 @@
     }
 
     function attachListeners() {
-        // Higher sensitivity mouse tracking
-        document.addEventListener('mousemove', (e) => { 
-            mouseX = e.clientX; 
-            mouseY = e.clientY; 
-        }, true);
+        document.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
 
         document.addEventListener('keydown', (e) => {
+            // UI DISMISS ON KEYPRESS (Typing)
+            if (triggerWrapper && triggerWrapper.style.display === 'flex') {
+                if (!isSearchActive) hideAll();
+            }
+            // ESC KEY DISMISS
+            if (e.key === 'Escape') hideAll();
+
             if (e.altKey && (e.code === 'KeyA' || e.key === 'a')) {
                 const el = document.activeElement;
-                if (isInputField(el)) {
-                    console.log('Orbital: Manual trigger for input');
-                    showTrigger(el);
-                }
+                if (isInputField(el)) showTrigger(el);
             }
-        });
+        }, true);
+
+        // UI DISMISS ON SCROLL
+        window.addEventListener('scroll', () => { if (!isSearchActive) hideAll(); }, { passive: true });
 
         document.addEventListener('mousedown', (e) => {
             if (isInputField(e.target)) {
                 showTrigger(e.target);
             } else if (uiHost && !uiHost.contains(e.target)) {
-                setTimeout(() => { 
-                    const sel = window.getSelection();
-                    if (sel.isCollapsed && document.activeElement !== currentTarget) hideAll(); 
-                }, 200);
+                // If user clicks outside, hide everything immediately
+                hideAll();
             }
         }, true);
 
-        triggerIcon.addEventListener('mouseenter', () => { 
-            if (closeTimeout) clearTimeout(closeTimeout); 
-            expandMenu(); 
-        });
+        const handleTriggerClick = (e) => {
+            // Guard against the second click of a double-click
+            if (Date.now() - lastTriggerTime < 350) {
+                e.preventDefault(); e.stopPropagation();
+                return;
+            }
+            expandMenu();
+        };
+
+        triggerIcon.addEventListener('mouseenter', () => { if (closeTimeout) clearTimeout(closeTimeout); expandMenu(); });
+        triggerIcon.addEventListener('click', handleTriggerClick);
         
-        radialContainer.addEventListener('mouseenter', () => { 
-            if (closeTimeout) clearTimeout(closeTimeout); 
-        });
-        
-        radialContainer.addEventListener('mouseleave', (e) => { 
-            if (!isSearchActive) closeTimeout = setTimeout(collapseMenu, 700); 
-        });
+        radialContainer.addEventListener('mouseenter', () => { if (closeTimeout) clearTimeout(closeTimeout); });
+        radialContainer.addEventListener('mouseleave', (e) => { if (!isSearchActive) closeTimeout = setTimeout(collapseMenu, 700); });
         
         radialMenu.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -251,7 +252,10 @@
         });
 
         searchInput.addEventListener('input', (e) => renderPreviews(e.target.value));
-        searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { isSearchActive = false; searchInput.classList.remove('active'); searchInput.blur(); } e.stopPropagation(); });
+        searchInput.addEventListener('keydown', (e) => { 
+            if (e.key === 'Enter') { isSearchActive = false; searchInput.classList.remove('active'); searchInput.blur(); } 
+            e.stopPropagation(); 
+        });
         
         radialMenu.addEventListener('contextmenu', (e) => {
             e.preventDefault();
@@ -261,13 +265,14 @@
         });
 
         document.addEventListener('mouseup', (e) => { 
-            setTimeout(handleTextSelection, 50); 
+            mouseX = e.clientX; mouseY = e.clientY; 
+            setTimeout(handleTextSelection, 100); 
         }, true);
 
         addBtn.addEventListener('click', async (e) => {
+            if (Date.now() - lastTriggerTime < 350) return; // DB-Click Protection
             e.preventDefault(); e.stopPropagation();
             if (lastSelection) {
-                console.log('Orbital: Adding template ->', lastSelection);
                 const isDup = templates.some(t => t.text === lastSelection);
                 if (!isDup) {
                     templates = [{ text: lastSelection, cat: currentCategory, type: 'dynamic' }, ...templates];
@@ -289,19 +294,21 @@
     function showTrigger(el) {
         if (!triggerWrapper) return;
         currentTarget = el; const rect = el.getBoundingClientRect();
+        lastTriggerTime = Date.now(); // Record when trigger appears
+        
         triggerWrapper.style.display = 'flex'; 
         addBtn.style.display = 'none'; 
         triggerIcon.style.display = 'flex';
         
         let top, left;
         if (settings.triggerPosition === 'mouse') {
-            top = (mouseY - 40); left = (mouseX + 15);
+            // OFFSET BY 20-30px to avoid double-click overlap
+            top = (mouseY - 50); left = (mouseX + 25);
         } else {
             top = (rect.top - 28); left = (rect.right - 8);
         }
         triggerWrapper.style.top = top + 'px'; triggerWrapper.style.left = left + 'px';
         radialContainer.style.display = 'none'; isSearchActive = false; searchInput.classList.remove('active');
-        console.log('Orbital: Trigger shown at', top, left);
     }
 
     function hideAll() {
@@ -310,6 +317,8 @@
             radialContainer.style.display = 'none'; 
             radialContainer.classList.remove('active'); 
         }
+        isSearchActive = false;
+        if (searchInput) searchInput.classList.remove('active');
     }
 
     function expandMenu() {
@@ -374,9 +383,7 @@
                 let finalY = anchorY + y;
                 
                 if (dir === 'west') finalX -= 110; else finalX -= 65; 
-                
-                item.style.left = (finalX) + 'px';
-                item.style.top = (finalY - 20) + 'px';
+                item.style.left = finalX + 'px'; item.style.top = (finalY - 20) + 'px';
                 
                 item.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); insertText(text); });
                 radialContainer.appendChild(item);
@@ -400,15 +407,13 @@
         }
         currentTarget.dispatchEvent(new Event('input', { bubbles: true }));
         currentTarget.dispatchEvent(new Event('change', { bubbles: true }));
+        hideAll(); // UX: Hide after insertion
     }
 
     function handleTextSelection() {
         const selObj = window.getSelection();
         const selection = (selObj.toString() || "").trim();
-        
         if (!selection || selObj.isCollapsed) return;
-        
-        console.log('Orbital: Selection detected:', selection);
 
         let rect = null;
         const activeEl = document.activeElement;
@@ -423,6 +428,8 @@
 
         if (rect) {
             lastSelection = selection;
+            lastTriggerTime = Date.now(); // Record when trigger appears
+
             if (!triggerWrapper) return;
             triggerWrapper.style.display = 'flex';
             addBtn.style.display = 'flex';
@@ -430,13 +437,13 @@
 
             let top, left;
             if (settings.triggerPosition === 'mouse') {
-                top = (mouseY - 45); left = (mouseX + 10);
+                // FIXED OVERLAP: Move icon further (left + 25 instead of -20)
+                top = (mouseY - 50); left = (mouseX + 25);
             } else {
                 top = (rect.top - 48); left = (rect.right);
             }
             triggerWrapper.style.top = top + 'px';
             triggerWrapper.style.left = left + 'px';
-            console.log('Orbital: Selection trigger shown at', top, left);
         }
     }
 
