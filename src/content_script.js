@@ -53,10 +53,19 @@
                     return { text: txt, cat: (t.cat || 'all').toLowerCase(), type: t.type || 'dynamic', slot: t.slot || null };
                 });
             }
-            if (data.settings) settings = { ...settings, ...data.settings };
+            if (data.settings) {
+                settings = { ...settings, ...data.settings };
+                // FEATURE: Blacklist Check
+                const domain = window.location.hostname.toLowerCase();
+                const blacklist = (settings.excludedDomains || "").split(",").map(d => d.trim().toLowerCase()).filter(d => d !== "");
+                if (blacklist.some(d => domain.includes(d))) {
+                    console.log('🚀 OrbitalFill: Site blacklisted, powering down.');
+                    return;
+                }
+            }
             if (data.recentlyUsed) recentlyUsed = data.recentlyUsed;
             setupDOM(); attachListeners();
-            console.log('🚀 OrbitalFill Pro-Active (v1.6.6) Ready');
+            console.log('🚀 OrbitalFill Pro-Active (v1.6.7) Ready');
         } catch (e) { console.error('Init Error:', e); }
     }
 
@@ -315,8 +324,9 @@
     function isInputField(el) {
         if (!el || !el.tagName) return false;
         const tagName = el.tagName; const type = (el.getAttribute('type') || 'text').toLowerCase();
+        const role = (el.getAttribute('role') || '').toLowerCase();
         const textTypes = ['text', 'search', 'email', 'tel', 'url', 'number', 'password', 'date', 'datetime-local'];
-        return (tagName === 'INPUT' && textTypes.includes(type)) || tagName === 'TEXTAREA' || el.isContentEditable || el.getAttribute('role') === 'textbox';
+        return (tagName === 'INPUT' && (textTypes.includes(type) || role === 'combobox')) || tagName === 'TEXTAREA' || el.isContentEditable || role === 'textbox';
     }
 
     function analyzeFieldCategory(el) {

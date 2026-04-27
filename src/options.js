@@ -14,7 +14,8 @@ function save_options() {
         enableFloating: document.getElementById('enableFloating').value === 'true',
         radialStyle: document.getElementById('radialStyle').value,
         staticColor: document.getElementById('staticColor').value,
-        dynamicColor: document.getElementById('dynamicColor').value
+        dynamicColor: document.getElementById('dynamicColor').value,
+        excludedDomains: document.getElementById('excludedDomains').value
     };
 
     const templateRows = document.querySelectorAll('.template-row');
@@ -50,6 +51,7 @@ function restore_options() {
             document.getElementById('dynamicColor').value = s.dynamicColor || '#3b82f6';
             
             selectedTheme = s.theme || 'indigo';
+            document.getElementById('excludedDomains').value = s.excludedDomains || '';
             updateThemeUI();
         }
 
