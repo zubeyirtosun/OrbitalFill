@@ -9,6 +9,7 @@
     let addBtn = null;
     let searchInput = null;
     let catIndicator = null;
+    let toastContainer = null;
     
     let lastSelection = '';
     let templates = []; 
@@ -20,6 +21,7 @@
     let closeTimeout = null;
     let autoCloseTimer = null;
     let lastTriggerTime = 0;
+    let kbSelectionIndex = -1; // Keyboard navigation tracker
 
     let settings = {
         directions: { north: 1, south: 1, east: 1, west: 1 },
@@ -58,14 +60,11 @@
                 settings = { ...settings, ...data.settings };
                 const domain = window.location.hostname.toLowerCase();
                 const blacklist = (settings.excludedDomains || "").split(",").map(d => d.trim().toLowerCase()).filter(d => d !== "");
-                if (blacklist.some(d => domain.includes(d))) {
-                    console.log('🚀 OrbitalFill: Site blacklisted.');
-                    return;
-                }
+                if (blacklist.some(d => domain.includes(d))) return;
             }
             if (data.recentlyUsed) recentlyUsed = data.recentlyUsed;
             setupDOM(); attachListeners();
-            console.log('🚀 OrbitalFill Precision (v1.6.8) Ready');
+            console.log('🚀 OrbitalFill Ultra-Fluid (v1.6.9) Ready');
         } catch (e) { console.error('Init Error:', e); }
     }
 
@@ -90,28 +89,28 @@
             }
             .af-ui-container { position: absolute; pointer-events: none; width: 100%; height: 100%; top: 0; left: 0; }
             .af-ui-container * { pointer-events: auto; box-sizing: border-box; }
+            
             .af-trigger-wrapper {
                 position: absolute; display: none; align-items: center; gap: 8px;
                 transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s; padding: 15px; z-index: 2147483647; opacity: 0.7;
             }
             .af-trigger-wrapper.pulse { opacity: 1; transform: scale(1.25); }
+
             .af-trigger-icon {
                 width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
                 cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: 0.2s;
                 color: white; border: 1px solid rgba(255, 255, 255, 0.2);
-                background: linear-gradient(135deg, var(--af-main), var(--af-secondary)); font-size: 18px;
+                background: linear-gradient(135deg, var(--af-main), var(--af-secondary));
+                font-size: 18px;
             }
-            .af-add-btn {
-                width: 32px; height: 32px; background: #10b981; color: white; border-radius: 10px;
-                display: flex; align-items: center; justify-content: center; cursor: pointer;
-                transition: 0.2s; font-weight: 800; font-size: 20px; box-shadow: 0 4px 10px rgba(16,185,129,0.25);
-            }
+
             .af-radial-container {
                 position: absolute; width: 500px; height: 500px; display: flex; align-items: center; justify-content: center;
                 pointer-events: none; transform: translate(-50%, -50%); opacity: 0; 
                 transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
             .af-radial-container.active { opacity: 1; }
+
             .af-radial-menu {
                 width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
                 transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); transform: scale(0);
@@ -120,6 +119,18 @@
                 border: 2px solid rgba(255, 255, 255, 0.4); z-index: 50;
             }
             .af-radial-container.active .af-radial-menu { transform: scale(1); box-shadow: 0 0 40px rgba(0,0,0,0.25); }
+
+            /* Pulse Wave Effect */
+            .af-radial-menu::before {
+                content: ''; position: absolute; width: 100%; height: 100%; border-radius: 50%;
+                background: var(--af-main); opacity: 0; z-index: -1;
+            }
+            .af-radial-container.active .af-radial-menu::before { animation: af-pulse-wave 1.2s ease-out; }
+            @keyframes af-pulse-wave {
+                0% { transform: scale(1); opacity: 0.5; }
+                100% { transform: scale(4); opacity: 0; }
+            }
+
             .af-preview-item {
                 position: absolute; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(10px);
                 padding: 10px 18px; border-radius: 12px; border-left: 4px solid var(--af-dynamic);
@@ -128,21 +139,27 @@
                 box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: all 0.2s;
                 opacity: 0; pointer-events: none; transform: scale(0.6); z-index: 40;
             }
+            .af-preview-item.kb-active, .af-preview-item:hover { 
+                background: var(--af-main); color: white !important; transform: scale(1.05) translateY(-3px); 
+                z-index: 100; box-shadow: 0 8px 16px rgba(0,0,0,0.15); border-left-color: transparent;
+            }
+            .af-preview-item.static { border-left-color: var(--af-static); }
             .af-radial-container.active .af-preview-item { opacity: 1; pointer-events: auto; transform: scale(1); }
-            .af-preview-item:hover { background: var(--af-main); color: white !important; transform: scale(1.05) translateY(-3px); box-shadow: 0 8px 16px rgba(0,0,0,0.15); border-left-color: transparent; }
-            .af-search-input {
-                position: absolute; width: 140px; background: white; border-radius: 20px;
-                border: 2px solid var(--af-main); padding: 5px 12px; font-family: inherit;
-                font-size: 12px; outline: none; bottom: 130px; transform: scale(0);
-                transition: all 0.3s; opacity: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 60;
+
+            .af-toast-container {
+                position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+                display: flex; flex-direction: column; gap: 10px; z-index: 2147483647; pointer-events: none;
             }
-            .af-search-input.active { transform: scale(1); opacity: 1; pointer-events: auto; }
-            .af-cat-indicator {
-                position: absolute; top: 145px; font-size: 10px; font-weight: 800;
-                background: var(--af-secondary); color: white; padding: 2px 10px; border-radius: 20px;
-                opacity: 0; transition: 0.3s; z-index: 60; text-transform: uppercase;
+            .af-toast {
+                background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); color: white;
+                padding: 10px 24px; border-radius: 20px; font-size: 13px; font-weight: 600;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: af-toast-in 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+                border: 1px solid rgba(255,255,255,0.1);
             }
-            .af-radial-container.active .af-cat-indicator { opacity: 1; }
+            @keyframes af-toast-in {
+                0% { opacity: 0; transform: translateY(20px) scale(0.8); }
+                100% { opacity: 1; transform: translateY(0) scale(1); }
+            }
         `;
         shadowRoot.appendChild(style);
 
@@ -150,12 +167,17 @@
         uiContainer.className = 'af-ui-container';
         shadowRoot.appendChild(uiContainer);
 
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'af-toast-container';
+        uiContainer.appendChild(toastContainer);
+
         triggerWrapper = document.createElement('div');
         triggerWrapper.className = 'af-trigger-wrapper';
         uiContainer.appendChild(triggerWrapper);
 
         addBtn = document.createElement('div');
         addBtn.className = 'af-add-btn';
+        addBtn.style.cssText = 'width: 32px; height: 32px; background: #10b981; color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: 800; font-size:20px;';
         addBtn.innerHTML = '+';
         triggerWrapper.appendChild(addBtn);
 
@@ -184,6 +206,19 @@
         radialContainer.appendChild(searchInput);
     }
 
+    function showToast(msg) {
+        const toast = document.createElement('div');
+        toast.className = 'af-toast';
+        toast.innerText = msg;
+        toastContainer.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(-20px)';
+            toast.style.transition = '0.4s';
+            setTimeout(() => toast.remove(), 400);
+        }, 2500);
+    }
+
     function startAutoCloseTimer() {
         if (autoCloseTimer) clearTimeout(autoCloseTimer);
         autoCloseTimer = setTimeout(() => { if (!isSearchActive) collapseMenu(); }, 2000);
@@ -203,6 +238,22 @@
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') hideAll();
+
+            // KEYBOARD NAVIGATION IN RADIAL MENU
+            if (radialContainer && radialContainer.classList.contains('active')) {
+                const items = Array.from(radialContainer.querySelectorAll('.af-preview-item'));
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(e.key)) {
+                    e.preventDefault();
+                    kbSelectionIndex = (kbSelectionIndex + 1) % items.length;
+                    items.forEach((it, idx) => it.classList.toggle('kb-active', idx === kbSelectionIndex));
+                    stopAutoCloseTimer();
+                } else if (e.key === 'Enter' && kbSelectionIndex !== -1) {
+                    items[kbSelectionIndex].dispatchEvent(new MouseEvent('mousedown'));
+                    kbSelectionIndex = -1;
+                }
+            }
+
+            // TYPE-TO-SEARCH
             if (radialContainer && radialContainer.classList.contains('active') && !isSearchActive) {
                 if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
                     isSearchActive = true; searchInput.classList.add('active');
@@ -213,23 +264,9 @@
         }, true);
 
         triggerIcon.addEventListener('mouseenter', () => { if (closeTimeout) clearTimeout(closeTimeout); expandMenu(); });
-        
-        // PRECISION FOCUS: Only specific components stop the timer
         radialMenu.addEventListener('mouseenter', stopAutoCloseTimer);
         radialMenu.addEventListener('mouseleave', () => { if (!isSearchActive) startAutoCloseTimer(); });
         
-        radialMenu.addEventListener('click', (e) => {
-            e.stopPropagation();
-            isSearchActive = !isSearchActive; searchInput.classList.toggle('active', isSearchActive);
-            if (isSearchActive) { searchInput.focus(); stopAutoCloseTimer(); } else renderPreviews();
-        });
-
-        searchInput.addEventListener('input', (e) => renderPreviews(e.target.value));
-        searchInput.addEventListener('keydown', (e) => { 
-            if (e.key === 'Enter') { isSearchActive = false; searchInput.classList.remove('active'); searchInput.blur(); } 
-            e.stopPropagation(); 
-        });
-
         document.addEventListener('mousedown', (e) => {
             if (isInputField(e.target)) showTrigger(e.target);
             else if (uiHost && !uiHost.contains(e.target)) hideAll();
@@ -246,42 +283,26 @@
         return (el.tagName === 'INPUT' && (textTypes.includes(type) || role === 'combobox')) || el.tagName === 'TEXTAREA' || el.isContentEditable || role === 'textbox';
     }
 
-    function analyzeFieldCategory(el) {
-        const attrs = (el.id + el.name + el.placeholder + (el.getAttribute('aria-label') || '')).toLowerCase();
-        if (attrs.includes('email') || attrs.includes('posta')) return 'emails';
-        if (attrs.includes('address') || attrs.includes('adres')) return 'addresses';
-        if (attrs.includes('phone') || attrs.includes('tel')) return 'phones';
-        if (attrs.includes('name') || attrs.includes('ad')) return 'names';
-        return 'all';
-    }
-
     function showTrigger(el) {
         if (!triggerWrapper) return;
         currentTarget = el; const rect = el.getBoundingClientRect();
-        const detectedCat = analyzeFieldCategory(el);
-        if (detectedCat !== 'all') { currentCategory = detectedCat; catIndicator.innerText = detectedCat.toUpperCase(); }
         triggerWrapper.style.display = 'flex'; addBtn.style.display = 'none'; triggerIcon.style.display = 'flex';
-        let top, left;
-        if (settings.triggerPosition === 'mouse') { top = (mouseY - 50); left = (mouseX + 25); }
-        else { top = (rect.top - 28); left = (rect.right - 8); }
+        let top = (mouseY - 50), left = (mouseX + 25);
+        if (settings.triggerPosition !== 'mouse') { top = (rect.top - 28); left = (rect.right - 8); }
         triggerWrapper.style.top = top + 'px'; triggerWrapper.style.left = left + 'px';
-        radialContainer.style.display = 'none'; isSearchActive = false;
     }
 
     function hideAll() {
         if (triggerWrapper) { triggerWrapper.style.display = 'none'; }
         if (radialContainer) { radialContainer.style.display = 'none'; radialContainer.classList.remove('active'); }
         isSearchActive = false; if (searchInput) searchInput.classList.remove('active');
-        stopAutoCloseTimer();
+        kbSelectionIndex = -1; stopAutoCloseTimer();
     }
 
     function expandMenu() {
         if (!radialContainer) return;
         triggerWrapper.style.display = 'none'; radialContainer.style.display = 'flex';
-        let top = 0, left = 0;
-        if (settings.triggerPosition === 'mouse') { top = mouseY; left = mouseX; } 
-        else { const rect = currentTarget.getBoundingClientRect(); top = rect.top + (rect.height / 2); left = rect.right - 20; }
-        radialContainer.style.top = top + 'px'; radialContainer.style.left = left + 'px';
+        radialContainer.style.top = mouseY + 'px'; radialContainer.style.left = mouseX + 'px';
         setTimeout(() => radialContainer.classList.add('active'), 10); 
         renderPreviews(); startAutoCloseTimer();
     }
@@ -289,7 +310,7 @@
     function collapseMenu() {
         if (!radialContainer) return;
         radialContainer.classList.remove('active');
-        setTimeout(() => { if (!radialContainer.classList.contains('active')) { radialContainer.style.display = 'none'; if (currentTarget && document.activeElement === currentTarget) showTrigger(currentTarget); } }, 300);
+        setTimeout(() => { if (!radialContainer.classList.contains('active')) radialContainer.style.display = 'none'; }, 300);
     }
 
     function renderPreviews(query = '') {
@@ -302,25 +323,22 @@
             const count = settings.directions[dir] || 1;
             for (let i = 1; i <= count; i++) {
                 const slotKey = dir.charAt(0).toUpperCase() + i;
-                let template = templates.find(t => t.slot === slotKey && (currentCategory === 'all' || t.cat === currentCategory));
+                let template = templates.find(t => t.slot === slotKey);
                 if (!template) { const pool = filtered.filter(t => !t.slot); if (dynamicIdx < pool.length) template = pool[dynamicIdx++]; }
+                if (!template || !template.text) continue;
+
                 const item = document.createElement('div');
-                item.classList.add('af-preview-item');
-                if (!template || !template.text) { item.innerText = slotKey; item.style.opacity = '0.3'; } 
-                else {
-                    if (template.type === 'static') item.classList.add('static');
-                    item.innerText = template.text.substring(0, 20) + (template.text.length > 20 ? '...' : '');
-                    item.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); insertText(template.text); });
-                }
-                const dist = 95 + (i * 45); const angle = (dirIdx * 90) - 90; const rad = (angle + (i - (count + 1) / 2) * (count > 2 ? 15 : 22)) * (Math.PI / 180);
-                const anchorX = 250, anchorY = 250;
-                let finalX = anchorX + Math.cos(rad) * dist, finalY = anchorY + Math.sin(rad) * dist;
-                if (dir === 'west') finalX -= 110; else finalX -= 65; 
-                item.style.left = finalX + 'px'; item.style.top = (finalY - 20) + 'px';
+                item.className = 'af-preview-item' + (template.type === 'static' ? ' static' : '');
+                item.innerText = template.text.substring(0, 20) + (template.text.length > 20 ? '...' : '');
                 
-                // PRECISION FOCUS: Each item also guards the timer
+                const dist = 95 + (i * 45), angle = (dirIdx * 90) - 90;
+                const rad = (angle + (i - (count + 1) / 2) * (count > 2 ? 15 : 22)) * (Math.PI / 180);
+                let x = 250 + Math.cos(rad) * dist, y = 250 + Math.sin(rad) * dist;
+                item.style.left = (x - (dir === 'west' ? 110 : 65)) + 'px'; item.style.top = (y - 20) + 'px';
+                
                 item.addEventListener('mouseenter', stopAutoCloseTimer);
                 item.addEventListener('mouseleave', () => { if (!isSearchActive) startAutoCloseTimer(); });
+                item.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); insertText(template.text); });
                 radialContainer.appendChild(item);
             }
         });
@@ -328,8 +346,6 @@
 
     function insertText(text) {
         if (!currentTarget) return;
-        recentlyUsed = [text, ...recentlyUsed.filter(t => t !== text)].slice(0, 5);
-        if (typeof chrome !== 'undefined' && chrome.storage) chrome.storage.local.set({ recentlyUsed });
         let val = currentTarget.isContentEditable ? currentTarget.innerText : (currentTarget.value || "");
         const fullText = ((val.length > 0 && !val.endsWith(' ') && !val.endsWith('\n')) ? " " : "") + text;
         if (currentTarget.isContentEditable) { currentTarget.focus(); document.execCommand('insertText', false, fullText); }
@@ -339,7 +355,7 @@
             currentTarget.selectionStart = currentTarget.selectionEnd = start + fullText.length;
         }
         currentTarget.dispatchEvent(new Event('input', { bubbles: true }));
-        hideAll();
+        showToast('Metin Yapıştırıldı'); hideAll();
     }
 
     function handleTextSelection() {
@@ -350,10 +366,8 @@
             const b = activeEl.getBoundingClientRect(); rect = { top: b.top, right: b.right, bottom: b.bottom, left: b.left };
         } else if (selObj.rangeCount > 0) rect = selObj.getRangeAt(0).getBoundingClientRect();
         if (rect) {
-            lastSelection = selection; lastTriggerTime = Date.now();
-            triggerWrapper.style.display = 'flex'; addBtn.style.display = 'flex'; triggerIcon.style.display = isInputField(activeEl) ? 'flex' : 'none';
-            if (settings.triggerPosition === 'mouse') { triggerWrapper.style.top = (mouseY - 50) + 'px'; triggerWrapper.style.left = (mouseX + 25) + 'px'; }
-            else { triggerWrapper.style.top = (rect.top - 48) + 'px'; triggerWrapper.style.left = (rect.right) + 'px'; }
+            lastSelection = selection; triggerWrapper.style.display = 'flex'; addBtn.style.display = 'flex'; triggerIcon.style.display = isInputField(activeEl) ? 'flex' : 'none';
+            triggerWrapper.style.top = (mouseY - 50) + 'px'; triggerWrapper.style.left = (mouseX + 25) + 'px';
         }
     }
 
