@@ -18,7 +18,7 @@
     let mouseX = 0;
     let mouseY = 0;
     let closeTimeout = null;
-    let autoCloseTimer = null; // 2-second timer
+    let autoCloseTimer = null;
     let lastTriggerTime = 0;
 
     let settings = {
@@ -50,13 +50,13 @@
             if (data.templates) {
                 templates = data.templates.map(t => {
                     const txt = typeof t === 'string' ? t : (t.text || '');
-                    return { text: txt, cat: t.cat || 'all', type: t.type || 'dynamic', slot: t.slot || null };
+                    return { text: txt, cat: (t.cat || 'all').toLowerCase(), type: t.type || 'dynamic', slot: t.slot || null };
                 });
             }
             if (data.settings) settings = { ...settings, ...data.settings };
             if (data.recentlyUsed) recentlyUsed = data.recentlyUsed;
             setupDOM(); attachListeners();
-            console.log('🚀 OrbitalFill Flow (v1.6.5) Ready');
+            console.log('🚀 OrbitalFill Pro-Active (v1.6.6) Ready');
         } catch (e) { console.error('Init Error:', e); }
     }
 
@@ -84,16 +84,18 @@
             
             .af-trigger-wrapper {
                 position: absolute; display: none; align-items: center; gap: 8px;
-                transition: transform 0.2s, opacity 0.3s; padding: 15px; z-index: 2147483647; opacity: 0.7;
+                transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s; 
+                padding: 15px; z-index: 2147483647; opacity: 0.7;
             }
-            .af-trigger-wrapper:hover { opacity: 1; transform: scale(1.05); }
+            .af-trigger-wrapper.pulse { opacity: 1; transform: scale(1.25); }
+            .af-trigger-wrapper.drag-over { background: rgba(16, 185, 129, 0.1); border-radius: 15px; border: 2px dashed #10b981; }
 
             .af-trigger-icon {
-                width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+                width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
                 cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: 0.2s;
                 color: white; border: 1px solid rgba(255, 255, 255, 0.2);
                 background: linear-gradient(135deg, var(--af-main), var(--af-secondary));
-                font-size: 16px;
+                font-size: 18px;
             }
 
             .af-add-btn {
@@ -126,6 +128,7 @@
                 box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: all 0.2s;
                 opacity: 0; pointer-events: none; transform: scale(0.6); z-index: 40;
             }
+            .af-preview-item.drag-target { background: #fee2e2; border-bottom: 2px solid var(--af-main); transform: scale(1.1); }
             .af-preview-item.static { border-left-color: var(--af-static); }
             .af-radial-container.active .af-preview-item { opacity: 1; pointer-events: auto; transform: scale(1); }
             
@@ -203,39 +206,36 @@
 
     function startAutoCloseTimer() {
         if (autoCloseTimer) clearTimeout(autoCloseTimer);
-        autoCloseTimer = setTimeout(() => {
-            if (!isSearchActive) collapseMenu();
-        }, 2000);
+        autoCloseTimer = setTimeout(() => { if (!isSearchActive) collapseMenu(); }, 2000);
     }
 
-    function stopAutoCloseTimer() {
-        if (autoCloseTimer) clearTimeout(autoCloseTimer);
-    }
+    function stopAutoCloseTimer() { if (autoCloseTimer) clearTimeout(autoCloseTimer); }
 
     function attachListeners() {
+        // MOUSE TRACKING & SMART PULSE
         document.addEventListener('mousemove', (e) => { 
             mouseX = e.clientX; 
             mouseY = e.clientY; 
+            
+            if (triggerWrapper && triggerWrapper.style.display === 'flex') {
+                const rect = triggerWrapper.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const dist = Math.hypot(mouseX - centerX, mouseY - centerY);
+                triggerWrapper.classList.toggle('pulse', dist < 80);
+            }
         });
 
         document.addEventListener('keydown', (e) => {
-            // ESC KEY DISMISS
             if (e.key === 'Escape') hideAll();
-
-            // TYPE-TO-SEARCH UX
             if (radialContainer && radialContainer.classList.contains('active') && !isSearchActive) {
                 if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
                     e.preventDefault(); e.stopPropagation();
-                    isSearchActive = true;
-                    searchInput.classList.add('active');
-                    searchInput.value = e.key;
-                    searchInput.focus();
-                    searchInput.setSelectionRange(1, 1);
-                    renderPreviews(e.key);
+                    isSearchActive = true; searchInput.classList.add('active');
+                    searchInput.value = e.key; searchInput.focus(); renderPreviews(e.key);
                     stopAutoCloseTimer();
                 }
             }
-
             if (e.altKey && (e.code === 'KeyA' || e.key === 'a')) {
                 const el = document.activeElement;
                 if (isInputField(el)) showTrigger(el);
@@ -252,22 +252,26 @@
             }
         }, true);
 
-        const handleTriggerClick = (e) => {
-            if (Date.now() - lastTriggerTime < 350) { e.preventDefault(); e.stopPropagation(); return; }
-            expandMenu();
-        };
+        // DRAG & DROP SAVE (Feature #2)
+        triggerWrapper.addEventListener('dragover', (e) => { e.preventDefault(); triggerWrapper.classList.add('drag-over'); });
+        triggerWrapper.addEventListener('dragleave', () => { triggerWrapper.classList.remove('drag-over'); });
+        triggerWrapper.addEventListener('drop', async (e) => {
+            e.preventDefault(); triggerWrapper.classList.remove('drag-over');
+            const droppedText = e.dataTransfer.getData('text');
+            if (droppedText) {
+                saveTemplate(droppedText.trim());
+                playClickSound(0.2);
+            }
+        });
 
         triggerIcon.addEventListener('mouseenter', () => { if (closeTimeout) clearTimeout(closeTimeout); expandMenu(); });
-        triggerIcon.addEventListener('click', handleTriggerClick);
+        triggerIcon.addEventListener('click', (e) => {
+            if (Date.now() - lastTriggerTime < 350) return;
+            expandMenu();
+        });
         
-        // AUTO-CLOSE TRACKING
-        radialContainer.addEventListener('mouseenter', () => { 
-            if (closeTimeout) clearTimeout(closeTimeout); 
-            stopAutoCloseTimer(); 
-        });
-        radialContainer.addEventListener('mouseleave', (e) => { 
-            if (!isSearchActive) startAutoCloseTimer(); 
-        });
+        radialContainer.addEventListener('mouseenter', () => { if (closeTimeout) clearTimeout(closeTimeout); stopAutoCloseTimer(); });
+        radialContainer.addEventListener('mouseleave', () => { if (!isSearchActive) startAutoCloseTimer(); });
         
         radialMenu.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -288,24 +292,24 @@
             currentCategory = cats[nextIdx]; catIndicator.innerText = currentCategory.toUpperCase(); renderPreviews();
         });
 
-        document.addEventListener('mouseup', (e) => { 
-            mouseX = e.clientX; mouseY = e.clientY; 
+        document.addEventListener('mouseup', () => { 
             setTimeout(handleTextSelection, 100); 
         }, true);
 
-        addBtn.addEventListener('click', async (e) => {
+        addBtn.addEventListener('click', (e) => {
             if (Date.now() - lastTriggerTime < 350) return;
-            e.preventDefault(); e.stopPropagation();
-            if (lastSelection) {
-                const isDup = templates.some(t => t.text === lastSelection);
-                if (!isDup) {
-                    templates = [{ text: lastSelection, cat: currentCategory, type: 'dynamic' }, ...templates];
-                    if (typeof chrome !== 'undefined' && chrome.storage) await chrome.storage.local.set({ templates });
-                    const orig = addBtn.innerHTML; addBtn.innerHTML = '✓'; addBtn.style.background = '#3b82f6';
-                    setTimeout(() => { addBtn.innerHTML = orig; addBtn.style.background = '#10b981'; }, 800);
-                }
-            }
+            if (lastSelection) saveTemplate(lastSelection);
         });
+    }
+
+    async function saveTemplate(txt, slot = null) {
+        const isDup = templates.some(t => t.text === txt && t.slot === slot);
+        if (!isDup) {
+            templates = [{ text: txt, cat: currentCategory, type: 'dynamic', slot: slot }, ...templates];
+            if (typeof chrome !== 'undefined' && chrome.storage) await chrome.storage.local.set({ templates });
+            const orig = addBtn.innerHTML; addBtn.innerHTML = '✓'; addBtn.style.background = '#3b82f6';
+            setTimeout(() => { addBtn.innerHTML = orig; addBtn.style.background = '#10b981'; }, 800);
+        }
     }
 
     function isInputField(el) {
@@ -315,10 +319,28 @@
         return (tagName === 'INPUT' && textTypes.includes(type)) || tagName === 'TEXTAREA' || el.isContentEditable || el.getAttribute('role') === 'textbox';
     }
 
+    function analyzeFieldCategory(el) {
+        const attrs = (el.id + el.name + el.placeholder + (el.getAttribute('aria-label') || '')).toLowerCase();
+        if (attrs.includes('email') || attrs.includes('posta')) return 'emails';
+        if (attrs.includes('address') || attrs.includes('adres') || attrs.includes('mahalle') || attrs.includes('sokak')) return 'addresses';
+        if (attrs.includes('phone') || attrs.includes('tel') || attrs.includes('gsm') || attrs.includes('mobil')) return 'phones';
+        if (attrs.includes('name') || attrs.includes('ad') || attrs.includes('soyad') || attrs.includes('unvan')) return 'names';
+        if (attrs.includes('tax') || attrs.includes('vergi') || attrs.includes('tc') || attrs.includes('kimlik')) return 'legal';
+        return 'all';
+    }
+
     function showTrigger(el) {
         if (!triggerWrapper) return;
         currentTarget = el; const rect = el.getBoundingClientRect();
         lastTriggerTime = Date.now();
+        
+        // FEATURE #3: Field-Type Awareness
+        const detectedCat = analyzeFieldCategory(el);
+        if (detectedCat !== 'all') {
+            currentCategory = detectedCat;
+            catIndicator.innerText = detectedCat.toUpperCase();
+        }
+
         triggerWrapper.style.display = 'flex'; addBtn.style.display = 'none'; triggerIcon.style.display = 'flex';
         let top, left;
         if (settings.triggerPosition === 'mouse') {
@@ -327,24 +349,19 @@
             top = (rect.top - 28); left = (rect.right - 8);
         }
         triggerWrapper.style.top = top + 'px'; triggerWrapper.style.left = left + 'px';
-        radialContainer.style.display = 'none'; isSearchActive = false; searchInput.classList.remove('active');
+        radialContainer.style.display = 'none'; isSearchActive = false;
     }
 
     function hideAll() {
         if (triggerWrapper) { triggerWrapper.style.display = 'none'; }
-        if (radialContainer) { 
-            radialContainer.style.display = 'none'; 
-            radialContainer.classList.remove('active'); 
-        }
-        isSearchActive = false;
-        if (searchInput) searchInput.classList.remove('active');
+        if (radialContainer) { radialContainer.style.display = 'none'; radialContainer.classList.remove('active'); }
+        isSearchActive = false; if (searchInput) searchInput.classList.remove('active');
         stopAutoCloseTimer();
     }
 
     function expandMenu() {
         if (!radialContainer) return;
-        triggerWrapper.style.display = 'none'; 
-        radialContainer.style.display = 'flex';
+        triggerWrapper.style.display = 'none'; radialContainer.style.display = 'flex';
         let top = 0, left = 0;
         if (settings.triggerPosition === 'mouse') { top = mouseY; left = mouseX; } 
         else {
@@ -353,8 +370,7 @@
         }
         radialContainer.style.top = top + 'px'; radialContainer.style.left = left + 'px';
         setTimeout(() => radialContainer.classList.add('active'), 10); 
-        renderPreviews();
-        startAutoCloseTimer(); // Start 2s countdown on open
+        renderPreviews(); startAutoCloseTimer();
     }
 
     function collapseMenu() {
@@ -385,29 +401,45 @@
                     const pool = filtered.filter(t => !t.slot);
                     if (dynamicIdx < pool.length) template = pool[dynamicIdx++];
                 }
-                if (!template || !template.text) continue;
-                
                 const item = document.createElement('div');
                 item.classList.add('af-preview-item');
-                if (template.type === 'static') item.classList.add('static');
-                const text = template.text;
-                item.innerText = text.substring(0, 20) + (text.length > 20 ? '...' : '');
-                item.title = text;
+                
+                // DRAG TO SLOT (Modified Feature #2 for open menu)
+                item.addEventListener('dragover', (e) => { e.preventDefault(); item.classList.add('drag-target'); });
+                item.addEventListener('dragleave', () => { item.classList.remove('drag-target'); });
+                item.addEventListener('drop', async (e) => {
+                    e.preventDefault(); item.classList.remove('drag-target');
+                    const txt = e.dataTransfer.getData('text');
+                    if (txt) {
+                        saveTemplate(txt.trim(), slotKey);
+                        playClickSound(0.2);
+                        renderPreviews(query);
+                    }
+                });
+
+                if (!template || !template.text) {
+                    // Empty ghost slot for dragging
+                    item.innerText = slotKey;
+                    item.style.opacity = '0.3';
+                    item.style.border = '1px dashed #ccc';
+                } else {
+                    if (template.type === 'static') item.classList.add('static');
+                    const text = template.text;
+                    item.innerText = text.substring(0, 20) + (text.length > 20 ? '...' : '');
+                    item.title = text;
+                    item.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); insertText(text); });
+                }
                 
                 const dist = 95 + (i * 45); const angle = (dirIdx * 90) - 90; const spread = (i - (count + 1) / 2) * (count > 2 ? 15 : 22);
                 const rad = (angle + spread) * (Math.PI / 180);
                 const x = Math.cos(rad) * dist, y = Math.sin(rad) * dist;
-                
                 const anchorX = 250; const anchorY = 250;
-                let finalX = anchorX + x;
-                let finalY = anchorY + y;
-                
+                let finalX = anchorX + x; let finalY = anchorY + y;
                 if (dir === 'west') finalX -= 110; else finalX -= 65; 
                 item.style.left = finalX + 'px'; item.style.top = (finalY - 20) + 'px';
                 
                 item.addEventListener('mouseenter', stopAutoCloseTimer);
                 item.addEventListener('mouseleave', () => { if (!isSearchActive) startAutoCloseTimer(); });
-                item.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); insertText(text); });
                 radialContainer.appendChild(item);
             }
         });
@@ -440,25 +472,27 @@
         if (isCurrentlyInInput && activeEl.selectionStart !== activeEl.selectionEnd) {
             const bounding = activeEl.getBoundingClientRect();
             rect = { top: bounding.top, right: bounding.right, bottom: bounding.bottom, left: bounding.left };
-        } else if (selObj.rangeCount > 0) {
-            rect = selObj.getRangeAt(0).getBoundingClientRect();
-        }
+        } else if (selObj.rangeCount > 0) rect = selObj.getRangeAt(0).getBoundingClientRect();
         if (rect) {
-            lastSelection = selection;
-            lastTriggerTime = Date.now();
+            lastSelection = selection; lastTriggerTime = Date.now();
             if (!triggerWrapper) return;
-            triggerWrapper.style.display = 'flex';
-            addBtn.style.display = 'flex';
+            triggerWrapper.style.display = 'flex'; addBtn.style.display = 'flex';
             triggerIcon.style.display = isCurrentlyInInput ? 'flex' : 'none';
             let top, left;
-            if (settings.triggerPosition === 'mouse') {
-                top = (mouseY - 50); left = (mouseX + 25);
-            } else {
-                top = (rect.top - 48); left = (rect.right);
-            }
-            triggerWrapper.style.top = top + 'px';
-            triggerWrapper.style.left = left + 'px';
+            if (settings.triggerPosition === 'mouse') { top = (mouseY - 50); left = (mouseX + 25); }
+            else { top = (rect.top - 48); left = (rect.right); }
+            triggerWrapper.style.top = top + 'px'; triggerWrapper.style.left = left + 'px';
         }
+    }
+
+    function playClickSound(volume) {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator(), gain = ctx.createGain();
+            osc.type = 'sine'; osc.frequency.setValueAtTime(800, ctx.currentTime);
+            gain.gain.setValueAtTime(volume, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+            osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.1);
+        } catch(e) {}
     }
 
     init();
