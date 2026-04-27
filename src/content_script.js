@@ -18,7 +18,8 @@
     let mouseX = 0;
     let mouseY = 0;
     let closeTimeout = null;
-    let lastTriggerTime = 0; // Double-click protection
+    let autoCloseTimer = null; // 2-second timer
+    let lastTriggerTime = 0;
 
     let settings = {
         directions: { north: 1, south: 1, east: 1, west: 1 },
@@ -55,7 +56,7 @@
             if (data.settings) settings = { ...settings, ...data.settings };
             if (data.recentlyUsed) recentlyUsed = data.recentlyUsed;
             setupDOM(); attachListeners();
-            console.log('🚀 OrbitalFill UX Optimized (v1.6.4) Ready');
+            console.log('🚀 OrbitalFill Flow (v1.6.5) Ready');
         } catch (e) { console.error('Init Error:', e); }
     }
 
@@ -83,8 +84,7 @@
             
             .af-trigger-wrapper {
                 position: absolute; display: none; align-items: center; gap: 8px;
-                transition: transform 0.2s, opacity 0.3s; 
-                padding: 15px; z-index: 2147483647; opacity: 0.7;
+                transition: transform 0.2s, opacity 0.3s; padding: 15px; z-index: 2147483647; opacity: 0.7;
             }
             .af-trigger-wrapper:hover { opacity: 1; transform: scale(1.05); }
 
@@ -201,16 +201,40 @@
         radialContainer.appendChild(searchInput);
     }
 
+    function startAutoCloseTimer() {
+        if (autoCloseTimer) clearTimeout(autoCloseTimer);
+        autoCloseTimer = setTimeout(() => {
+            if (!isSearchActive) collapseMenu();
+        }, 2000);
+    }
+
+    function stopAutoCloseTimer() {
+        if (autoCloseTimer) clearTimeout(autoCloseTimer);
+    }
+
     function attachListeners() {
-        document.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+        document.addEventListener('mousemove', (e) => { 
+            mouseX = e.clientX; 
+            mouseY = e.clientY; 
+        });
 
         document.addEventListener('keydown', (e) => {
-            // UI DISMISS ON KEYPRESS (Typing)
-            if (triggerWrapper && triggerWrapper.style.display === 'flex') {
-                if (!isSearchActive) hideAll();
-            }
             // ESC KEY DISMISS
             if (e.key === 'Escape') hideAll();
+
+            // TYPE-TO-SEARCH UX
+            if (radialContainer && radialContainer.classList.contains('active') && !isSearchActive) {
+                if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                    e.preventDefault(); e.stopPropagation();
+                    isSearchActive = true;
+                    searchInput.classList.add('active');
+                    searchInput.value = e.key;
+                    searchInput.focus();
+                    searchInput.setSelectionRange(1, 1);
+                    renderPreviews(e.key);
+                    stopAutoCloseTimer();
+                }
+            }
 
             if (e.altKey && (e.code === 'KeyA' || e.key === 'a')) {
                 const el = document.activeElement;
@@ -218,37 +242,37 @@
             }
         }, true);
 
-        // UI DISMISS ON SCROLL
         window.addEventListener('scroll', () => { if (!isSearchActive) hideAll(); }, { passive: true });
 
         document.addEventListener('mousedown', (e) => {
             if (isInputField(e.target)) {
                 showTrigger(e.target);
             } else if (uiHost && !uiHost.contains(e.target)) {
-                // If user clicks outside, hide everything immediately
                 hideAll();
             }
         }, true);
 
         const handleTriggerClick = (e) => {
-            // Guard against the second click of a double-click
-            if (Date.now() - lastTriggerTime < 350) {
-                e.preventDefault(); e.stopPropagation();
-                return;
-            }
+            if (Date.now() - lastTriggerTime < 350) { e.preventDefault(); e.stopPropagation(); return; }
             expandMenu();
         };
 
         triggerIcon.addEventListener('mouseenter', () => { if (closeTimeout) clearTimeout(closeTimeout); expandMenu(); });
         triggerIcon.addEventListener('click', handleTriggerClick);
         
-        radialContainer.addEventListener('mouseenter', () => { if (closeTimeout) clearTimeout(closeTimeout); });
-        radialContainer.addEventListener('mouseleave', (e) => { if (!isSearchActive) closeTimeout = setTimeout(collapseMenu, 700); });
+        // AUTO-CLOSE TRACKING
+        radialContainer.addEventListener('mouseenter', () => { 
+            if (closeTimeout) clearTimeout(closeTimeout); 
+            stopAutoCloseTimer(); 
+        });
+        radialContainer.addEventListener('mouseleave', (e) => { 
+            if (!isSearchActive) startAutoCloseTimer(); 
+        });
         
         radialMenu.addEventListener('click', (e) => {
             e.stopPropagation();
             isSearchActive = !isSearchActive; searchInput.classList.toggle('active', isSearchActive);
-            if (isSearchActive) searchInput.focus(); else renderPreviews();
+            if (isSearchActive) { searchInput.focus(); stopAutoCloseTimer(); } else renderPreviews();
         });
 
         searchInput.addEventListener('input', (e) => renderPreviews(e.target.value));
@@ -270,7 +294,7 @@
         }, true);
 
         addBtn.addEventListener('click', async (e) => {
-            if (Date.now() - lastTriggerTime < 350) return; // DB-Click Protection
+            if (Date.now() - lastTriggerTime < 350) return;
             e.preventDefault(); e.stopPropagation();
             if (lastSelection) {
                 const isDup = templates.some(t => t.text === lastSelection);
@@ -294,15 +318,10 @@
     function showTrigger(el) {
         if (!triggerWrapper) return;
         currentTarget = el; const rect = el.getBoundingClientRect();
-        lastTriggerTime = Date.now(); // Record when trigger appears
-        
-        triggerWrapper.style.display = 'flex'; 
-        addBtn.style.display = 'none'; 
-        triggerIcon.style.display = 'flex';
-        
+        lastTriggerTime = Date.now();
+        triggerWrapper.style.display = 'flex'; addBtn.style.display = 'none'; triggerIcon.style.display = 'flex';
         let top, left;
         if (settings.triggerPosition === 'mouse') {
-            // OFFSET BY 20-30px to avoid double-click overlap
             top = (mouseY - 50); left = (mouseX + 25);
         } else {
             top = (rect.top - 28); left = (rect.right - 8);
@@ -319,6 +338,7 @@
         }
         isSearchActive = false;
         if (searchInput) searchInput.classList.remove('active');
+        stopAutoCloseTimer();
     }
 
     function expandMenu() {
@@ -331,10 +351,10 @@
             const rect = currentTarget.getBoundingClientRect();
             top = rect.top + (rect.height / 2); left = rect.right - 20;
         }
-        
         radialContainer.style.top = top + 'px'; radialContainer.style.left = left + 'px';
         setTimeout(() => radialContainer.classList.add('active'), 10); 
         renderPreviews();
+        startAutoCloseTimer(); // Start 2s countdown on open
     }
 
     function collapseMenu() {
@@ -385,6 +405,8 @@
                 if (dir === 'west') finalX -= 110; else finalX -= 65; 
                 item.style.left = finalX + 'px'; item.style.top = (finalY - 20) + 'px';
                 
+                item.addEventListener('mouseenter', stopAutoCloseTimer);
+                item.addEventListener('mouseleave', () => { if (!isSearchActive) startAutoCloseTimer(); });
                 item.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); insertText(text); });
                 radialContainer.appendChild(item);
             }
@@ -395,10 +417,8 @@
         if (!currentTarget) return;
         recentlyUsed = [text, ...recentlyUsed.filter(t => t !== text)].slice(0, 5);
         if (typeof chrome !== 'undefined' && chrome.storage) chrome.storage.local.set({ recentlyUsed });
-        
         let val = currentTarget.isContentEditable ? currentTarget.innerText : (currentTarget.value || "");
         const fullText = ((val.length > 0 && !val.endsWith(' ') && !val.endsWith('\n')) ? " " : "") + text;
-        
         if (currentTarget.isContentEditable) { currentTarget.focus(); document.execCommand('insertText', false, fullText); }
         else {
             const start = currentTarget.selectionStart, end = currentTarget.selectionEnd;
@@ -407,37 +427,31 @@
         }
         currentTarget.dispatchEvent(new Event('input', { bubbles: true }));
         currentTarget.dispatchEvent(new Event('change', { bubbles: true }));
-        hideAll(); // UX: Hide after insertion
+        hideAll();
     }
 
     function handleTextSelection() {
         const selObj = window.getSelection();
         const selection = (selObj.toString() || "").trim();
         if (!selection || selObj.isCollapsed) return;
-
         let rect = null;
         const activeEl = document.activeElement;
         const isCurrentlyInInput = isInputField(activeEl);
-
         if (isCurrentlyInInput && activeEl.selectionStart !== activeEl.selectionEnd) {
             const bounding = activeEl.getBoundingClientRect();
             rect = { top: bounding.top, right: bounding.right, bottom: bounding.bottom, left: bounding.left };
         } else if (selObj.rangeCount > 0) {
             rect = selObj.getRangeAt(0).getBoundingClientRect();
         }
-
         if (rect) {
             lastSelection = selection;
-            lastTriggerTime = Date.now(); // Record when trigger appears
-
+            lastTriggerTime = Date.now();
             if (!triggerWrapper) return;
             triggerWrapper.style.display = 'flex';
             addBtn.style.display = 'flex';
             triggerIcon.style.display = isCurrentlyInInput ? 'flex' : 'none';
-
             let top, left;
             if (settings.triggerPosition === 'mouse') {
-                // FIXED OVERLAP: Move icon further (left + 25 instead of -20)
                 top = (mouseY - 50); left = (mouseX + 25);
             } else {
                 top = (rect.top - 48); left = (rect.right);
