@@ -1,21 +1,18 @@
 {
   "manifest_version": 3,
-  "name": "AutoFill Pro - Görev Odaklı Form Doldurucu",
-  "commands": {
-    "trigger-autofill": {
-      "suggested_key": {
-        "default": "Alt+A",
-        "mac": "Command+Shift+A"
-      },
-      "description": "AutoFill menüsünü aç"
-    }
-  },
-  "version": "1.0",
-  "description": "Sık kullandığınız metinleri şablon olarak kaydedin ve formları saniyeler içinde doldurun.",
+  "name": "OrbitalFill Professional",
+  "version": "1.6.3",
+  "description": "High-performance radial menu for form automation and template management.",
   "permissions": [
     "storage",
     "activeTab",
-    "contextMenus"
+    "contextMenus",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*",
+    "file://*/*"
   ],
   "action": {
     "default_popup": "src/popup.html",
@@ -27,9 +24,11 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["http://*/*", "https://*/*", "file://*/*"],
       "js": ["src/content_script.js"],
-      "css": ["src/content_styles.css"]
+      "css": ["src/content_styles.css"],
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
   "options_page": "src/options.html",

@@ -38,16 +38,15 @@
 
     async function init() {
         try {
-            // Robust test-friendly storage fallback
             const hasStorage = typeof chrome !== 'undefined' && chrome && chrome.storage && chrome.storage.local;
             const storage = hasStorage ? chrome.storage.local : {
                 get: (keys) => Promise.resolve({
                     templates: [
-                        { text: "Statik Şablon", cat: "all", type: 'static', slot: 'N1' },
-                        { text: "Dinamik Örnek 1", cat: "all", type: 'dynamic' }
+                        { text: "Static Template", cat: "all", type: 'static', slot: 'N1' },
+                        { text: "Example Dynamic", cat: "all", type: 'dynamic' }
                     ]
                 }),
-                set: (data) => Promise.resolve(console.log('Mock Set:', data))
+                set: (data) => Promise.resolve()
             };
 
             const data = await storage.get(['templates', 'settings', 'recentlyUsed']);
@@ -57,67 +56,68 @@
                     return { text: txt, cat: t.cat || 'all', type: t.type || 'dynamic', slot: t.slot || null };
                 });
             } else {
-                templates = [{ text: "Örnek Şablon", cat: "all", type: 'dynamic' }];
+                templates = [{ text: "OrbitalFill Template", cat: "all", type: 'dynamic' }];
             }
             if (data.settings) settings = { ...settings, ...data.settings };
             if (data.recentlyUsed) recentlyUsed = data.recentlyUsed;
-            setupDOM(); attachListeners();
-            console.log('🚀 AutoFill Pro v1.6.1 Ready');
+            setupDOM(); 
+            attachListeners();
+            console.log('🚀 OrbitalFill Professional Ready (v1.6.3)');
         } catch (e) { console.error('Init Error:', e); }
     }
 
     function setupDOM() {
-        document.querySelectorAll('#af-ui-host, .af-ui-container').forEach(el => el.remove());
+        document.querySelectorAll('#af-ui-host').forEach(el => el.remove());
         uiHost = document.createElement('div');
         uiHost.id = 'af-ui-host';
-        uiHost.style.cssText = 'position: absolute; top: 0; left: 0; width: 0; height: 0; z-index: 2147483647; pointer-events: none;';
+        uiHost.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2147483647; pointer-events: none; visibility: visible; display: block;';
         document.documentElement.appendChild(uiHost);
         shadowRoot = uiHost.attachShadow({ mode: 'open' });
 
         const colors = themes[settings.theme] || themes.indigo;
         const style = document.createElement('style');
         style.textContent = `
-            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
             :host { 
-                all: initial; font-family: 'Outfit', sans-serif;
+                all: initial; 
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                 --af-main: ${colors.main}; --af-secondary: ${colors.secondary}; --af-accent: ${colors.accent};
                 --af-static: ${settings.staticColor || '#ef4444'};
                 --af-dynamic: ${settings.dynamicColor || '#3b82f6'};
                 --af-gold: linear-gradient(135deg, rgba(255,215,0,0) 0%, rgba(255,215,0,0.8) 50%, rgba(255,215,0,0) 100%);
             }
-            .af-ui-container { position: absolute; pointer-events: none; z-index: 2147483647; border: none; outline: none; }
-            .af-ui-container * { pointer-events: auto; box-sizing: border-box; }
+            .af-ui-container { position: absolute; pointer-events: none; width: 100%; height: 100%; top: 0; left: 0; visibility: visible; }
+            .af-ui-container * { pointer-events: auto; box-sizing: border-box; visibility: visible; }
             
             .af-trigger-wrapper {
-                position: absolute; display: flex; align-items: center; gap: 10px;
+                position: absolute; display: none; align-items: center; gap: 10px;
                 transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1); 
-                padding: 10px; z-index: 2147483647; background: transparent;
+                padding: 15px; z-index: 2147483647;
             }
 
             .af-trigger-icon {
-                width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-                cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: 0.2s;
-                opacity: 0.95; color: white; border: 1px solid rgba(255, 255, 255, 0.2);
+                width: 34px; height: 34px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+                cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: 0.2s;
+                opacity: 1; color: white; border: 1px solid rgba(255, 255, 255, 0.3);
                 background: linear-gradient(135deg, var(--af-main), var(--af-secondary));
+                font-size: 18px;
             }
-            .af-trigger-icon:hover { transform: scale(1.1) rotate(5deg); border-radius: 50%; opacity: 1; }
+            .af-trigger-icon:hover { transform: scale(1.15) rotate(5deg); border-radius: 50%; }
 
             .af-add-btn {
                 width: 32px; height: 32px; background: #10b981; color: white; border-radius: 10px;
                 display: flex; align-items: center; justify-content: center; cursor: pointer;
                 transition: 0.2s; font-weight: 800; font-size: 20px; box-shadow: 0 4px 10px rgba(16,185,129,0.25);
             }
-            .af-add-btn:hover { background: #059669; transform: scale(1.1); }
 
             .af-radial-container {
                 position: absolute; width: 500px; height: 500px; display: flex; align-items: center; justify-content: center;
-                pointer-events: none; transform: translate(-50%, -50%); opacity: 0; 
+                pointer-events: none; transform: translate(-50%, -50%); opacity: 0; visibility: hidden;
                 transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
-            .af-radial-container.active { pointer-events: auto; opacity: 1; }
+            .af-radial-container.active { pointer-events: auto; opacity: 1; visibility: visible; }
 
             .af-radial-menu {
-                width: 58px; height: 58px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+                width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
                 transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); transform: scale(0);
                 position: relative; pointer-events: auto; color: white; cursor: pointer;
                 background: linear-gradient(135deg, var(--af-main), var(--af-accent));
@@ -127,18 +127,18 @@
 
             .af-preview-item {
                 position: absolute; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(10px);
-                padding: 10px 18px; border-radius: 14px; border-left: 4px solid var(--af-dynamic);
-                font-size: 13px; font-weight: 800; color: #1e293b; white-space: nowrap; max-width: 210px;
+                padding: 10px 18px; border-radius: 12px; border-left: 4px solid var(--af-dynamic);
+                font-size: 13px; font-weight: 700; color: #1e293b; white-space: nowrap; max-width: 220px;
                 overflow: hidden; text-overflow: ellipsis; cursor: pointer;
-                box-shadow: 0 5px 15px rgba(0,0,0,0.08); transition: all 0.3s;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: all 0.2s;
                 opacity: 0; pointer-events: none; transform: scale(0.6); z-index: 40;
             }
             .af-preview-item.static { border-left-color: var(--af-static); }
             .af-radial-container.active .af-preview-item { opacity: 1; pointer-events: auto; transform: scale(1); }
             
             .af-preview-item:hover { 
-                background: var(--af-main); color: white !important; transform: scale(1.08) translateY(-5px); 
-                z-index: 100; box-shadow: 0 10px 20px rgba(0,0,0,0.15); border-left-color: transparent;
+                background: var(--af-main); color: white !important; transform: scale(1.05) translateY(-3px); 
+                z-index: 100; box-shadow: 0 8px 16px rgba(0,0,0,0.15); border-left-color: transparent;
             }
 
             .af-preview-item::after {
@@ -161,12 +161,6 @@
                 transition: all 0.3s; opacity: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 60;
             }
             .af-search-input.active { transform: scale(1); opacity: 1; pointer-events: auto; }
-            .af-cat-indicator {
-                position: absolute; top: 145px; font-size: 10px; font-weight: 800;
-                background: var(--af-secondary); color: white; padding: 2px 10px; border-radius: 20px;
-                opacity: 0; transition: 0.3s; z-index: 60; text-transform: uppercase;
-            }
-            .af-radial-container.active .af-cat-indicator { opacity: 1; }
         `;
         shadowRoot.appendChild(style);
 
@@ -176,7 +170,6 @@
 
         triggerWrapper = document.createElement('div');
         triggerWrapper.className = 'af-trigger-wrapper';
-        triggerWrapper.style.display = 'none';
         uiContainer.appendChild(triggerWrapper);
 
         addBtn = document.createElement('div');
@@ -191,33 +184,42 @@
 
         radialContainer = document.createElement('div');
         radialContainer.className = 'af-radial-container';
-        radialContainer.style.display = 'none';
         uiContainer.appendChild(radialContainer);
 
         radialMenu = document.createElement('div');
         radialMenu.className = 'af-radial-menu';
-        radialMenu.innerHTML = '<span style="font-size:10px; font-weight:800; pointer-events:none;">AUTO</span>';
+        radialMenu.innerHTML = '<span style="font-size:11px; font-weight:800; pointer-events:none;">ORBIT</span>';
         radialContainer.appendChild(radialMenu);
 
         catIndicator = document.createElement('div');
         catIndicator.className = 'af-cat-indicator';
-        catIndicator.innerText = 'TÜMÜ';
+        catIndicator.style.cssText = 'position: absolute; top: 145px; font-size: 10px; font-weight: 800; background: var(--af-secondary); color: white; padding: 2px 10px; border-radius: 20px; opacity: 0; transition: 0.3s; z-index: 60; text-transform: uppercase;';
+        catIndicator.innerText = 'ALL';
         radialContainer.appendChild(catIndicator);
 
         searchInput = document.createElement('input');
         searchInput.className = 'af-search-input';
-        searchInput.placeholder = 'Şablon ara...';
+        searchInput.placeholder = 'Search...';
         radialContainer.appendChild(searchInput);
     }
 
     function attachListeners() {
-        document.addEventListener('mousemove', (e) => { mouseX = e.pageX; mouseY = e.pageY; });
+        // Higher sensitivity mouse tracking
+        document.addEventListener('mousemove', (e) => { 
+            mouseX = e.clientX; 
+            mouseY = e.clientY; 
+        }, true);
+
         document.addEventListener('keydown', (e) => {
             if (e.altKey && (e.code === 'KeyA' || e.key === 'a')) {
                 const el = document.activeElement;
-                if (isInputField(el)) showTrigger(el);
+                if (isInputField(el)) {
+                    console.log('Orbital: Manual trigger for input');
+                    showTrigger(el);
+                }
             }
         });
+
         document.addEventListener('mousedown', (e) => {
             if (isInputField(e.target)) {
                 showTrigger(e.target);
@@ -228,32 +230,48 @@
                 }, 200);
             }
         }, true);
-        triggerIcon.addEventListener('mouseenter', () => { if (closeTimeout) clearTimeout(closeTimeout); playClickSound(0.05); expandMenu(); });
-        radialContainer.addEventListener('mouseenter', () => { if (closeTimeout) clearTimeout(closeTimeout); });
-        radialContainer.addEventListener('mouseleave', (e) => { if (!isSearchActive) closeTimeout = setTimeout(collapseMenu, 600); });
+
+        triggerIcon.addEventListener('mouseenter', () => { 
+            if (closeTimeout) clearTimeout(closeTimeout); 
+            expandMenu(); 
+        });
+        
+        radialContainer.addEventListener('mouseenter', () => { 
+            if (closeTimeout) clearTimeout(closeTimeout); 
+        });
+        
+        radialContainer.addEventListener('mouseleave', (e) => { 
+            if (!isSearchActive) closeTimeout = setTimeout(collapseMenu, 700); 
+        });
+        
         radialMenu.addEventListener('click', (e) => {
-            e.stopPropagation(); playClickSound(0.1);
+            e.stopPropagation();
             isSearchActive = !isSearchActive; searchInput.classList.toggle('active', isSearchActive);
             if (isSearchActive) searchInput.focus(); else renderPreviews();
         });
+
         searchInput.addEventListener('input', (e) => renderPreviews(e.target.value));
         searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { isSearchActive = false; searchInput.classList.remove('active'); searchInput.blur(); } e.stopPropagation(); });
+        
         radialMenu.addEventListener('contextmenu', (e) => {
-            e.preventDefault(); playClickSound(0.1);
+            e.preventDefault();
             const cats = ['all', ...new Set(templates.filter(t => t.cat && t.cat !== 'all').map(t => t.cat))];
             const nextIdx = (cats.indexOf(currentCategory) + 1) % cats.length;
             currentCategory = cats[nextIdx]; catIndicator.innerText = currentCategory.toUpperCase(); renderPreviews();
         });
-        document.addEventListener('mouseup', (e) => { mouseX = e.pageX; mouseY = e.pageY; setTimeout(handleTextSelection, 100); });
+
+        document.addEventListener('mouseup', (e) => { 
+            setTimeout(handleTextSelection, 50); 
+        }, true);
+
         addBtn.addEventListener('click', async (e) => {
             e.preventDefault(); e.stopPropagation();
             if (lastSelection) {
+                console.log('Orbital: Adding template ->', lastSelection);
                 const isDup = templates.some(t => t.text === lastSelection);
                 if (!isDup) {
                     templates = [{ text: lastSelection, cat: currentCategory, type: 'dynamic' }, ...templates];
-                    const hasStorage = typeof chrome !== 'undefined' && chrome && chrome.storage && chrome.storage.local;
-                    if (hasStorage) await chrome.storage.local.set({ templates });
-                    playClickSound(0.2);
+                    if (typeof chrome !== 'undefined' && chrome.storage) await chrome.storage.local.set({ templates });
                     const orig = addBtn.innerHTML; addBtn.innerHTML = '✓'; addBtn.style.background = '#3b82f6';
                     setTimeout(() => { addBtn.innerHTML = orig; addBtn.style.background = '#10b981'; }, 800);
                 }
@@ -269,39 +287,49 @@
     }
 
     function showTrigger(el) {
+        if (!triggerWrapper) return;
         currentTarget = el; const rect = el.getBoundingClientRect();
-        triggerWrapper.style.display = 'flex'; addBtn.style.display = 'none'; triggerIcon.style.display = 'flex';
+        triggerWrapper.style.display = 'flex'; 
+        addBtn.style.display = 'none'; 
+        triggerIcon.style.display = 'flex';
+        
         let top, left;
         if (settings.triggerPosition === 'mouse') {
-            top = (mouseY - 40); left = (mouseX - 10);
+            top = (mouseY - 40); left = (mouseX + 15);
         } else {
-            top = (window.scrollY + rect.top - 28); left = (window.scrollX + rect.right - 8);
+            top = (rect.top - 28); left = (rect.right - 8);
         }
         triggerWrapper.style.top = top + 'px'; triggerWrapper.style.left = left + 'px';
         radialContainer.style.display = 'none'; isSearchActive = false; searchInput.classList.remove('active');
+        console.log('Orbital: Trigger shown at', top, left);
     }
 
     function hideAll() {
         if (triggerWrapper) { triggerWrapper.style.display = 'none'; }
-        if (radialContainer) { radialContainer.style.display = 'none'; radialContainer.classList.remove('active'); }
+        if (radialContainer) { 
+            radialContainer.style.display = 'none'; 
+            radialContainer.classList.remove('active'); 
+        }
     }
 
     function expandMenu() {
-        triggerWrapper.style.display = 'none'; radialContainer.style.display = 'flex';
+        if (!radialContainer) return;
+        triggerWrapper.style.display = 'none'; 
+        radialContainer.style.display = 'flex';
         let top = 0, left = 0;
         if (settings.triggerPosition === 'mouse') { top = mouseY; left = mouseX; } 
         else {
             const rect = currentTarget.getBoundingClientRect();
-            top = window.scrollY + rect.top + 26; left = window.scrollX + rect.right - 26;
+            top = rect.top + (rect.height / 2); left = rect.right - 20;
         }
-        const p = 250;
-        if (left + p > window.scrollX + window.innerWidth) left -= 140;
-        if (top + p > window.scrollY + window.innerHeight) top -= 140;
+        
         radialContainer.style.top = top + 'px'; radialContainer.style.left = left + 'px';
-        setTimeout(() => radialContainer.classList.add('active'), 10); renderPreviews();
+        setTimeout(() => radialContainer.classList.add('active'), 10); 
+        renderPreviews();
     }
 
     function collapseMenu() {
+        if (!radialContainer) return;
         radialContainer.classList.remove('active');
         setTimeout(() => {
             if (!radialContainer.classList.contains('active')) {
@@ -312,10 +340,12 @@
     }
 
     function renderPreviews(query = '') {
+        if (!radialContainer) return;
         radialContainer.querySelectorAll('.af-preview-item').forEach(i => i.remove());
         const filtered = templates.filter(t => (currentCategory === 'all' || t.cat === currentCategory) && (query === '' || (t.text && t.text.toLowerCase().includes(query.toLowerCase()))));
         const dirs = ['north', 'east', 'south', 'west'];
         let dynamicIdx = 0;
+        
         dirs.forEach((dir, dirIdx) => {
             const count = settings.directions[dir] || 1;
             const dirKey = dir.charAt(0).toUpperCase();
@@ -327,29 +357,28 @@
                     if (dynamicIdx < pool.length) template = pool[dynamicIdx++];
                 }
                 if (!template || !template.text) continue;
+                
                 const item = document.createElement('div');
                 item.classList.add('af-preview-item');
                 if (template.type === 'static') item.classList.add('static');
                 const text = template.text;
-                item.innerText = text.substring(0, 18) + (text.length > 18 ? '...' : '');
+                item.innerText = text.substring(0, 20) + (text.length > 20 ? '...' : '');
                 item.title = text;
-                const dist = 90 + (i * 45); const angle = (dirIdx * 90) - 90; const spread = (i - (count + 1) / 2) * (count > 2 ? 15 : 22);
+                
+                const dist = 95 + (i * 45); const angle = (dirIdx * 90) - 90; const spread = (i - (count + 1) / 2) * (count > 2 ? 15 : 22);
                 const rad = (angle + spread) * (Math.PI / 180);
                 const x = Math.cos(rad) * dist, y = Math.sin(rad) * dist;
                 
-                // UNIFIED POSITIONING SYSTEM: Always use LEFT/TOP, adjust anchor for West
                 const anchorX = 250; const anchorY = 250;
                 let finalX = anchorX + x;
                 let finalY = anchorY + y;
                 
-                if (dir === 'west') finalX -= 100; // Shift west items slightly more left for layout
-                else finalX -= 60; // Standard centering bias
+                if (dir === 'west') finalX -= 110; else finalX -= 65; 
                 
                 item.style.left = (finalX) + 'px';
-                item.style.top = (finalY - 18) + 'px';
-                item.style.right = 'auto'; // Force clear any accidental inheritance
-
-                item.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); playClickSound(0.1); insertText(text); });
+                item.style.top = (finalY - 20) + 'px';
+                
+                item.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); insertText(text); });
                 radialContainer.appendChild(item);
             }
         });
@@ -358,10 +387,11 @@
     function insertText(text) {
         if (!currentTarget) return;
         recentlyUsed = [text, ...recentlyUsed.filter(t => t !== text)].slice(0, 5);
-        const hasStorage = typeof chrome !== 'undefined' && chrome && chrome.storage && chrome.storage.local;
-        if (hasStorage) chrome.storage.local.set({ recentlyUsed });
+        if (typeof chrome !== 'undefined' && chrome.storage) chrome.storage.local.set({ recentlyUsed });
+        
         let val = currentTarget.isContentEditable ? currentTarget.innerText : (currentTarget.value || "");
         const fullText = ((val.length > 0 && !val.endsWith(' ') && !val.endsWith('\n')) ? " " : "") + text;
+        
         if (currentTarget.isContentEditable) { currentTarget.focus(); document.execCommand('insertText', false, fullText); }
         else {
             const start = currentTarget.selectionStart, end = currentTarget.selectionEnd;
@@ -375,7 +405,10 @@
     function handleTextSelection() {
         const selObj = window.getSelection();
         const selection = (selObj.toString() || "").trim();
+        
         if (!selection || selObj.isCollapsed) return;
+        
+        console.log('Orbital: Selection detected:', selection);
 
         let rect = null;
         const activeEl = document.activeElement;
@@ -390,31 +423,21 @@
 
         if (rect) {
             lastSelection = selection;
+            if (!triggerWrapper) return;
             triggerWrapper.style.display = 'flex';
             addBtn.style.display = 'flex';
             triggerIcon.style.display = isCurrentlyInInput ? 'flex' : 'none';
 
             let top, left;
             if (settings.triggerPosition === 'mouse') {
-                top = (mouseY - 45); left = (mouseX - 20);
+                top = (mouseY - 45); left = (mouseX + 10);
             } else {
-                top = (window.scrollY + rect.top - 48); left = (window.scrollX + rect.right);
-                if (left + 100 > window.scrollX + window.innerWidth) left -= 120;
+                top = (rect.top - 48); left = (rect.right);
             }
             triggerWrapper.style.top = top + 'px';
             triggerWrapper.style.left = left + 'px';
+            console.log('Orbital: Selection trigger shown at', top, left);
         }
-    }
-
-    function playClickSound(volume) {
-        try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = ctx.createOscillator(), gain = ctx.createGain();
-            osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1);
-            gain.gain.setValueAtTime(volume, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-            osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.1);
-        } catch(e) {}
     }
 
     init();
