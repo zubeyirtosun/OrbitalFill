@@ -13,6 +13,7 @@ function save_options() {
         triggerPosition: document.getElementById('triggerPosition').value,
         enableFloating: document.getElementById('enableFloating').value === 'true',
         radialStyle: document.getElementById('radialStyle').value,
+        iconShape: document.getElementById('iconShape').value,
         staticColor: document.getElementById('staticColor').value,
         dynamicColor: document.getElementById('dynamicColor').value,
         excludedDomains: document.getElementById('excludedDomains').value
@@ -47,6 +48,7 @@ function restore_options() {
             document.getElementById('triggerPosition').value = s.triggerPosition || 'mouse';
             document.getElementById('enableFloating').value = s.enableFloating === false ? 'false' : 'true';
             document.getElementById('radialStyle').value = s.radialStyle || 'standard';
+            document.getElementById('iconShape').value = s.iconShape || 'square';
             document.getElementById('staticColor').value = s.staticColor || '#ef4444';
             document.getElementById('dynamicColor').value = s.dynamicColor || '#3b82f6';
             

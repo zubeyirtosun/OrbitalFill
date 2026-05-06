@@ -58,6 +58,11 @@
             }
             if (data.settings) {
                 settings = { ...settings, ...data.settings };
+                if (settings.iconShape === 'round') {
+                    const style = document.createElement('style');
+                    style.textContent = `.af-trigger-icon, .af-add-btn { border-radius: 50% !important; }`;
+                    shadowRoot.appendChild(style);
+                }
                 const domain = window.location.hostname.toLowerCase();
                 const blacklist = (settings.excludedDomains || "").split(",").map(d => d.trim().toLowerCase()).filter(d => d !== "");
                 if (blacklist.some(d => domain.includes(d))) return;
@@ -94,15 +99,17 @@
                 position: absolute; display: none; align-items: center; gap: 8px;
                 transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s; padding: 15px; z-index: 2147483647; opacity: 0.7;
             }
-            .af-trigger-wrapper.pulse { opacity: 1; transform: scale(1.25); }
+            .af-trigger-wrapper.pulse { opacity: 1; }
 
             .af-trigger-icon {
-                width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-                cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: 0.2s;
+                width: 36px; height: 36px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+                cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
                 color: white; border: 1px solid rgba(255, 255, 255, 0.2);
                 background: linear-gradient(135deg, var(--af-main), var(--af-secondary));
-                font-size: 18px;
+                font-size: 18px; position: relative;
             }
+            .af-trigger-icon:hover { transform: scale(1.1); filter: brightness(1.1); }
+            .af-trigger-icon.pulse-active { transform: scale(1.15); box-shadow: 0 0 15px var(--af-main); }
 
             .af-radial-container {
                 position: absolute; width: 500px; height: 500px; display: flex; align-items: center; justify-content: center;
@@ -146,6 +153,14 @@
             .af-preview-item.static { border-left-color: var(--af-static); }
             .af-radial-container.active .af-preview-item { opacity: 1; pointer-events: auto; transform: scale(1); }
 
+            .af-add-btn {
+                width: 36px; height: 36px; background: #10b981; color: white; border-radius: 12px; display: flex; 
+                align-items: center; justify-content: center; cursor: pointer; font-weight: 800; font-size: 22px; 
+                transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            }
+            .af-add-btn:hover { background: #059669; transform: scale(1.1); }
+            .af-add-btn.pulse-active { transform: scale(1.15); box-shadow: 0 0 15px #10b981; }
+
             .af-toast-container {
                 position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
                 display: flex; flex-direction: column; gap: 10px; z-index: 2147483647; pointer-events: none;
@@ -177,8 +192,8 @@
 
         addBtn = document.createElement('div');
         addBtn.className = 'af-add-btn';
-        addBtn.style.cssText = 'width: 32px; height: 32px; background: #10b981; color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: 800; font-size:20px;';
         addBtn.innerHTML = '+';
+        addBtn.title = 'Seçimi Şablon Olarak Kaydet';
         triggerWrapper.appendChild(addBtn);
 
         triggerIcon = document.createElement('div');
@@ -232,7 +247,10 @@
             if (triggerWrapper && triggerWrapper.style.display === 'flex') {
                 const rect = triggerWrapper.getBoundingClientRect();
                 const dist = Math.hypot(mouseX - (rect.left + rect.width/2), mouseY - (rect.top + rect.height/2));
-                triggerWrapper.classList.toggle('pulse', dist < 80);
+                const isNear = dist < 80;
+                triggerWrapper.classList.toggle('pulse', isNear);
+                triggerIcon.classList.toggle('pulse-active', isNear);
+                if (addBtn) addBtn.classList.toggle('pulse-active', isNear);
             }
         });
 
@@ -264,6 +282,16 @@
         }, true);
 
         triggerIcon.addEventListener('mouseenter', () => { if (closeTimeout) clearTimeout(closeTimeout); expandMenu(); });
+        addBtn.addEventListener('click', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            if (lastSelection) {
+                templates.push({ text: lastSelection, cat: 'all', type: 'dynamic', slot: null });
+                chrome.storage.local.set({ templates }, () => {
+                    showToast('Seçim Şablon Olarak Eklendi');
+                    addBtn.style.display = 'none';
+                });
+            }
+        });
         radialMenu.addEventListener('mouseenter', stopAutoCloseTimer);
         radialMenu.addEventListener('mouseleave', () => { if (!isSearchActive) startAutoCloseTimer(); });
         
@@ -319,7 +347,11 @@
         const filtered = templates.filter(t => (currentCategory === 'all' || t.cat === currentCategory) && (query === '' || (t.text && t.text.toLowerCase().includes(query.toLowerCase()))));
         const dirs = ['north', 'east', 'south', 'west'];
         let dynamicIdx = 0;
+        const isSemicircle = settings.radialStyle === 'semicircle';
+        
         dirs.forEach((dir, dirIdx) => {
+            if (isSemicircle && dir === 'south') return; // Skip south in semicircle mode
+            
             const count = settings.directions[dir] || 1;
             for (let i = 1; i <= count; i++) {
                 const slotKey = dir.charAt(0).toUpperCase() + i;
@@ -331,10 +363,23 @@
                 item.className = 'af-preview-item' + (template.type === 'static' ? ' static' : '');
                 item.innerText = template.text.substring(0, 20) + (template.text.length > 20 ? '...' : '');
                 
-                const dist = 95 + (i * 45), angle = (dirIdx * 90) - 90;
+                let dist = 95 + (i * 45), angle = (dirIdx * 90) - 90;
+                
+                if (isSemicircle) {
+                    // Map N, E, W to a 180 degree arc (-180 to 0)
+                    // West: -180, North: -90, East: 0
+                    if (dir === 'west') angle = -180;
+                    else if (dir === 'north') angle = -90;
+                    else if (dir === 'east') angle = 0;
+                    dist = 110 + (i * 40);
+                }
+
                 const rad = (angle + (i - (count + 1) / 2) * (count > 2 ? 15 : 22)) * (Math.PI / 180);
                 let x = 250 + Math.cos(rad) * dist, y = 250 + Math.sin(rad) * dist;
-                item.style.left = (x - (dir === 'west' ? 110 : 65)) + 'px'; item.style.top = (y - 20) + 'px';
+                
+                // Better centering and offset
+                item.style.left = (x - (angle < -90 ? 120 : (angle > -90 ? 20 : 65))) + 'px'; 
+                item.style.top = (y - 20) + 'px';
                 
                 item.addEventListener('mouseenter', stopAutoCloseTimer);
                 item.addEventListener('mouseleave', () => { if (!isSearchActive) startAutoCloseTimer(); });

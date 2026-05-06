@@ -29,7 +29,6 @@
     {
       "matches": ["http://*/*", "https://*/*", "file://*/*"],
       "js": ["src/content_script.js"],
-      "css": ["src/content_styles.css"],
       "run_at": "document_idle",
       "all_frames": true
     }
